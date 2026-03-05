@@ -11,11 +11,14 @@ public class BenchmarkRunner {
 
     /** Starts the execution of all framework tests */
     public static void main(String[] args) {
-        System.out.println("Starting ORM Benchmarks...");
+        var defaultIterations = (args.length > 0 && args[0].matches("\\d+"))
+                ? Integer.valueOf(args[0])
+                : null;
+        System.out.println("Starting ORM Benchmarks... " + defaultIterations);
         var runner = new BenchmarkRunner();
 
         {   // Warming Up:
-            var iterations = 1;
+            var iterations = 100_000 - 1;
             runner.runHibernate("Hibernate", iterations);
             runner.runJdbi("Jdbi", iterations);
             runner.runExposed("Exposed", iterations);
@@ -23,7 +26,7 @@ public class BenchmarkRunner {
         }
 
         {   // Run The Benchmark:
-            var iterations = 100_000;
+            var iterations = defaultIterations != null ? defaultIterations : 100_000;
             runner.runHibernate("Hibernate", iterations);
             runner.runJdbi("Jdbi", iterations);
             runner.runExposed("Exposed", iterations);

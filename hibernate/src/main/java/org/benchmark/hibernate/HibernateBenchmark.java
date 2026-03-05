@@ -12,17 +12,22 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 import org.benchmark.common.DatabaseUtils;
+import org.benchmark.common.EmployeeRelationView;
 import org.benchmark.common.Stopwatch;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
+import org.hibernate.StatelessSession;
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.cfg.Configuration;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Random;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 /** Main benchmark class for Hibernate */
 public class HibernateBenchmark {
@@ -48,6 +53,7 @@ public class HibernateBenchmark {
     /** Employee entity mapping */
     @Entity(name = "HibEmployee")
     @Table(name = "employee")
+    @DynamicUpdate
     @Getter
     @Setter
     public static class Employee {
@@ -94,18 +100,20 @@ public class HibernateBenchmark {
             session.clear();
         }
 
-        /** Retrieves all employees */
-        public java.util.List<Employee> findAllEmployees() {
-            return session.createQuery("from HibEmployee", Employee.class).list();
+        /** Retrieves all employees as a stream for efficient processing */
+        public Stream<Employee> streamAllEmployees() {
+            return session.createQuery("from HibEmployee", Employee.class)
+                    .setCacheable(false)
+                    .stream();
         }
 
         /** Retrieves a City from the database */
         public City getCity(Long id) {
-            var city = session.get(City.class, id);
-            if (city == null) {
+            var result = session.find(City.class, id);
+            if (result == null) {
                 throw new IllegalStateException("City with ID " + id + " not found. Ensure 'common' module is recompiled!");
             }
-            return city;
+            return result;
         }
     }
 
@@ -135,6 +143,23 @@ public class HibernateBenchmark {
                 var transaction = session.beginTransaction();
                 try {
                     action.accept(new Dao(session));
+                    transaction.commit();
+                } catch (Exception e) {
+                    transaction.rollback();
+                    throw new RuntimeException(e);
+                }
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        /** Executes the given action inside a managed Stateless transaction */
+        public void executeInStatelessTransaction(Consumer<StatelessSession> action) {
+            try (var connection = DatabaseUtils.getConnection();
+                 var session = sessionFactory.withStatelessOptions().connection(connection).openStatelessSession()) {
+                var transaction = session.beginTransaction();
+                try {
+                    action.accept(session);
                     transaction.commit();
                 } catch (Exception e) {
                     transaction.rollback();
@@ -177,74 +202,95 @@ public class HibernateBenchmark {
 
     /** Executes a single row insert test */
     public void testSingleInsert(Stopwatch stopwatch) {
-        stopwatch.start();
         service.executeInTransaction(dao -> {
             var city = dao.getCity(1L);
-            for (var i = 1; i <= 100_000; i++) {
-                var employee = createRandomEmployee(city);
-                dao.insert(employee);
-            }
+            stopwatch.benchmark(() -> {
+                for (var i = 1; i <= stopwatch.getIterations(); i++) {
+                    var employee = createRandomEmployee(city);
+                    dao.insert(employee);
+                }
+            });
         });
-        stopwatch.stop();
     }
 
-    /** Executes a batch insert test */
+    /** Executes a batch insert test using StatelessSession for maximum performance */
     public void testBatchInsert(Stopwatch stopwatch) {
-        stopwatch.start();
-        service.executeInTransaction(dao -> {
-            var city = dao.getCity(1L);
-            for (var i = 1; i <= 100_000; i++) {
-                var employee = createRandomEmployee(city);
-                dao.insert(employee);
-                if (i % 50 == 0) {
-                    dao.flushAndClear();
+        service.executeInStatelessTransaction(session -> {
+            var city = session.get(City.class, 1L);
+            stopwatch.benchmark(() -> {
+                var batch = new ArrayList<Employee>(50);
+                for (var i = 1; i <= stopwatch.getIterations(); i++) {
+                    batch.add(createRandomEmployee(city));
+                    if (i % 50 == 0) {
+                        session.insertMultiple(batch);
+                        batch.clear();
+                    }
                 }
-            }
+                if (!batch.isEmpty()) {
+                    session.insertMultiple(batch);
+                }
+            });
         });
-        stopwatch.stop();
     }
 
     /** Executes updates on selected columns */
     public void testSpecificUpdate(Stopwatch stopwatch) {
-        stopwatch.start();
         service.executeInTransaction(dao -> {
-            var employees = dao.findAllEmployees();
-            for (var employee : employees) {
-                employee.setSalary(employee.getSalary().add(BigDecimal.valueOf(1000)));
-                employee.setUpdatedAt(LocalDateTime.now());
-            }
+            stopwatch.benchmark(() -> {
+                var count = 0;
+                try (var stream = dao.streamAllEmployees()) {
+                    for (var employee : (Iterable<Employee>) stream::iterator) {
+                        employee.setSalary(employee.getSalary().add(BigDecimal.valueOf(1000)));
+                        employee.setUpdatedAt(LocalDateTime.now());
+
+                        if (++count % 50 == 0) {
+                            dao.flushAndClear();
+                        }
+                    }
+                }
+            });
         });
-        stopwatch.stop();
     }
 
     /** Executes updates on randomly modified columns */
     public void testRandomUpdate(Stopwatch stopwatch) {
-        stopwatch.start();
         var random = new Random();
         service.executeInTransaction(dao -> {
-            var employees = dao.findAllEmployees();
-            for (var employee : employees) {
-                if (random.nextBoolean()) {
-                    employee.setIsActive(!employee.getIsActive());
-                } else {
-                    employee.setDepartment("Dept-" + random.nextInt(100));
+            stopwatch.benchmark(() -> {
+                var count = 0;
+                try (var stream = dao.streamAllEmployees()) {
+                    for (var employee : (Iterable<Employee>) stream::iterator) {
+                        if (random.nextBoolean()) {
+                            employee.setIsActive(!employee.getIsActive());
+                        } else {
+                            employee.setDepartment("Dept-" + random.nextInt(100));
+                        }
+                        employee.setUpdatedAt(LocalDateTime.now());
+
+                        if (++count % 50 == 0) {
+                            dao.flushAndClear();
+                        }
+                    }
                 }
-                employee.setUpdatedAt(LocalDateTime.now());
-            }
+            });
         });
-        stopwatch.stop();
     }
 
     /** Reads data including mapped relations */
     public void testReadWithRelations(Stopwatch stopwatch) {
-        stopwatch.start();
         service.executeReadOnly(session -> {
             var query = session.createQuery(
-                    "select e from HibEmployee e join fetch e.city left join fetch e.superior",
-                    Employee.class);
-            var result = query.list();
+                    "select new org.benchmark.common.EmployeeRelationView(" +
+                            "e.id, " +
+                            "e.name, " +
+                            "c.name, " +
+                            "s.name) " +
+                            "from HibEmployee e " +
+                            "join e.city c left join e.superior s",
+                    EmployeeRelationView.class);
+
+            stopwatch.benchmark(query::list);
         });
-        stopwatch.stop();
     }
 
     /** Creates a random employee instance */

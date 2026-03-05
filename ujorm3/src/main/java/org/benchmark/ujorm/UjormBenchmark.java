@@ -10,9 +10,9 @@ import org.benchmark.common.DatabaseUtils;
 import org.benchmark.common.EmployeeRelationView;
 import org.benchmark.common.Stopwatch;
 import org.ujorm.core.AbstractSnapshotable;
+import org.ujorm.mapper.EntityManagerProvider;
+import org.ujorm.mapper.ResultSetMapper;
 import org.ujorm.mapper.core.EntityManager;
-import org.ujorm.mapper.core.EntityManagerProvider;
-import org.ujorm.mapper.jdbc.ResultSetMapper;
 import org.ujorm.tools.jdbc.SqlParamBuilder;
 
 import java.math.BigDecimal;
@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.Stream;
 
 /** Main benchmark class for Ujorm3 */
 public class UjormBenchmark {
@@ -87,11 +88,11 @@ public class UjormBenchmark {
 
         /** Retrieves all employees */
         public List<Employee> findAllEmployees(Connection conn) {
-            return empEm.crud(conn).read("").streamMap(empEm::map).toList();
+            return empEm.crud(conn).read("").fetchSize(empEm.defaultBatchSize()).streamMap(empEm::map).toList();
         }
 
         /** Updates specific columns using batch */
-        public void updateSalaryBatch(List<Employee> entities, Connection conn) {
+        public void updateSalaryBatch(Stream<Employee> entities, Connection conn) {
             empEm.crud(conn).updateBatch(entities, "salary", "updatedAt");
         }
 
@@ -118,7 +119,7 @@ public class UjormBenchmark {
                 LEFT JOIN employee s ON e.superior_id = s.id
             """;
             try (var builder = new SqlParamBuilder(conn)) {
-                return builder.sql(sql).streamMap(empView::map).toList();
+                return builder.sql(sql).fetchSize(empEm.defaultBatchSize()).streamMap(empView::map).toList();
             }
         }
     }
@@ -163,95 +164,95 @@ public class UjormBenchmark {
 
     /** Executes a single row insert test */
     public void testSingleInsert(Stopwatch stopwatch) {
-        stopwatch.start();
         service.executeInTransaction((dao, conn) -> {
             var city = dao.getCity(1L, conn);
-            for (var i = 1; i <= 100_000; i++) {
-                var employee = createRandomEmployee(city);
-                dao.insert(employee, conn);
-            }
+            stopwatch.benchmark(() -> {
+                for (var i = 1; i <= stopwatch.getIterations(); i++) {
+                    var employee = createRandomEmployee(city);
+                    dao.insert(employee, conn);
+                }
+            });
         });
-        stopwatch.stop();
     }
 
     /** Executes a batch insert test */
     public void testBatchInsert(Stopwatch stopwatch) {
-        stopwatch.start();
         service.executeInTransaction((dao, conn) -> {
             var city = dao.getCity(1L, conn);
-            var batch = new ArrayList<Employee>(50);
-            for (var i = 1; i <= 100_000; i++) {
-                batch.add(createRandomEmployee(city));
-                if (i % 50 == 0) {
-                    dao.insertBatch(batch, conn);
-                    batch.clear();
+            stopwatch.benchmark(() -> {
+                var batch = new ArrayList<Employee>(50);
+                for (var i = 1; i <= stopwatch.getIterations(); i++) {
+                    batch.add(createRandomEmployee(city));
+                    if (i % 50 == 0) {
+                        dao.insertBatch(batch, conn);
+                        batch.clear();
+                    }
                 }
-            }
-            if (!batch.isEmpty()) {
-                dao.insertBatch(batch, conn);
-            }
+                if (!batch.isEmpty()) {
+                    dao.insertBatch(batch, conn);
+                }
+            });
         });
-        stopwatch.stop();
     }
 
     /** Executes updates on selected columns */
     public void testSpecificUpdate(Stopwatch stopwatch) {
-        stopwatch.start();
         service.executeInTransaction((dao, conn) -> {
             var employees = dao.findAllEmployees(conn);
-            var batch = new ArrayList<Employee>(50);
-            for (var employee : employees) {
-                employee.setSalary(employee.getSalary().add(BigDecimal.valueOf(1000)));
-                employee.setUpdatedAt(LocalDateTime.now());
-                batch.add(employee);
-                if (batch.size() == 50) {
-                    dao.updateSalaryBatch(batch, conn);
-                    batch.clear();
+            stopwatch.benchmark(() -> {
+                var batch = new ArrayList<Employee>(50);
+                for (var employee : employees) {
+                    employee.setSalary(employee.getSalary().add(BigDecimal.valueOf(1000)));
+                    employee.setUpdatedAt(LocalDateTime.now());
+                    batch.add(employee);
+                    if (batch.size() == 50) {
+                        dao.updateSalaryBatch(batch.stream(), conn);
+                        batch.clear();
+                    }
                 }
-            }
-            if (!batch.isEmpty()) {
-                dao.updateSalaryBatch(batch, conn);
-            }
+                if (!batch.isEmpty()) {
+                    dao.updateSalaryBatch(batch.stream(), conn);
+                }
+            });
         });
-        stopwatch.stop();
     }
 
     /** Executes updates on randomly modified columns */
     public void testRandomUpdate(Stopwatch stopwatch) {
-        stopwatch.start();
         var random = new Random();
         service.executeInTransaction((dao, conn) -> {
             var employees = dao.findAllEmployees(conn);
-            var batch = new ArrayList<Employee>(50);
-            for (var employee : employees) {
-                employee.saveSnapshot();
-                if (random.nextBoolean()) {
-                    employee.setIsActive(!employee.getIsActive());
-                } else {
-                    employee.setDepartment("Dept-" + random.nextInt(100));
-                }
-                employee.setUpdatedAt(LocalDateTime.now());
-                batch.add(employee);
+            stopwatch.benchmark(() -> {
+                var batch = new ArrayList<Employee>(50);
+                for (var employee : employees) {
+                    employee.saveSnapshot();
+                    if (random.nextBoolean()) {
+                        employee.setIsActive(!employee.getIsActive());
+                    } else {
+                        employee.setDepartment("Dept-" + random.nextInt(100));
+                    }
+                    employee.setUpdatedAt(LocalDateTime.now());
+                    batch.add(employee);
 
-                if (batch.size() == 50) {
-                    dao.updateChangedBatch(batch, conn);
-                    batch.clear();
+                    if (batch.size() == 50) {
+                        dao.updateChangedBatch(batch, conn);
+                        batch.clear();
+                    }
                 }
-            }
-            if (!batch.isEmpty()) {
-                dao.updateChangedBatch(batch, conn);
-            }
+                if (!batch.isEmpty()) {
+                    dao.updateChangedBatch(batch, conn);
+                }
+            });
         });
-        stopwatch.stop();
     }
 
     /** Reads data including mapped relations */
     public void testReadWithRelations(Stopwatch stopwatch) {
-        stopwatch.start();
         service.executeReadOnly((dao, conn) -> {
-            var result = dao.findWithRelations(conn);
+            stopwatch.benchmark(() -> {
+                var result = dao.findWithRelations(conn);
+            });
         });
-        stopwatch.stop();
     }
 
     /** Creates a random employee instance */

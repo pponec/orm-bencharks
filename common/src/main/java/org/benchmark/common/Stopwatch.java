@@ -5,10 +5,15 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 /** Utility class to measure and log benchmark times */
 public class Stopwatch {
+
+    private static final LocalDateTime START = LocalDateTime.now();
+    private static final DateTimeFormatter MINUTE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'_'HH:mm");
 
     private final String testName;
     private final String libraryName;
@@ -21,20 +26,35 @@ public class Stopwatch {
         this.iterations = iterations;
     }
 
+    /** Gets the number of iterations for the benchmark */
+    public int getIterations() {
+        return iterations;
+    }
+
+    /** Executes the given runnable and measures its execution time */
+    public void benchmark(Runnable task) {
+        start();
+        try {
+            task.run();
+        } finally {
+            stop();
+        }
+    }
+
     /** Starts the stopwatch */
-    public void start() {
+    private void start() {
         System.gc();
         this.startTime = System.nanoTime();
     }
 
     /** Stops the stopwatch and appends the result to a CSV file */
-    public void stop() {
+    private void stop() {
         var endTime = System.nanoTime();
         saveToCsv(endTime);
     }
 
     private void saveToCsv(long endTime) {
-        if (iterations <= 100) {
+        if (iterations < 10_000) {
             System.out.println("Warming Up: %s -> %s".formatted(libraryName, testName));
             return;
         }
@@ -47,14 +67,15 @@ public class Stopwatch {
 
             try (var writer = new PrintWriter(new FileWriter(filePath.toFile(), true))) {
                 if (isNewFile) {
-                    writer.println("Library|Test Name|Iterations|Duration (s)");
+                    writer.println("Start|Library|Test Name|Iterations|Duration (s)");
                 }
 
                 var durationNanos = endTime - this.startTime;
                 var formattedDuration = formatDuration(durationNanos);
                 var formattedIterations = formatInteger(iterations);
+                var formattedStart = START.format(MINUTE_FORMATTER);
 
-                writer.printf("%s|%s|%s|%s%n", libraryName, testName, formattedIterations, formattedDuration);
+                writer.printf("%s|%s|%s|%s|%s%n", formattedStart, libraryName, testName, formattedIterations, formattedDuration);
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -63,8 +84,7 @@ public class Stopwatch {
 
     /** Formats an integer to string with underscore thousands separators */
     public static String formatInteger(long number) {
-        var result = String.format(Locale.US, "%,d", number).replace(',', '_');
-        return result;
+        return String.format(Locale.US, "%,d", number).replace(',', '_');
     }
 
     /** Formats duration in nanoseconds to custom string with underscores */
@@ -76,7 +96,6 @@ public class Stopwatch {
         var nanoString = String.format(Locale.US, "%09d", nanos);
         var fractionString = nanoString.substring(0, 3) + "_" + nanoString.substring(3, 6) + "_" + nanoString.substring(6, 9);
 
-        var result = secString + "." + fractionString;
-        return result;
+        return secString + "." + fractionString;
     }
 }

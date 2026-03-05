@@ -139,84 +139,84 @@ public class JdbiBenchmark {
 
     /** Executes a single row insert test */
     public void testSingleInsert(Stopwatch stopwatch) {
-        stopwatch.start();
         service.executeInTransaction(dao -> {
-            for (var i = 1; i <= 100_000; i++) {
-                var employee = createRandomEmployee();
-                dao.insert(employee);
-            }
+            stopwatch.benchmark(() -> {
+                for (var i = 1; i <= stopwatch.getIterations(); i++) {
+                    var employee = createRandomEmployee();
+                    dao.insert(employee);
+                }
+            });
         });
-        stopwatch.stop();
     }
 
     /** Executes a batch insert test */
     public void testBatchInsert(Stopwatch stopwatch) {
-        stopwatch.start();
         service.executeInTransaction(dao -> {
-            var batch = new ArrayList<Employee>(50);
-            for (var i = 1; i <= 100_000; i++) {
-                batch.add(createRandomEmployee());
-                if (i % 50 == 0) {
-                    dao.insertBatch(batch);
-                    batch.clear();
+            stopwatch.benchmark(() -> {
+                var batch = new ArrayList<Employee>(50);
+                for (var i = 1; i <= stopwatch.getIterations(); i++) {
+                    batch.add(createRandomEmployee());
+                    if (i % 50 == 0) {
+                        dao.insertBatch(batch);
+                        batch.clear();
+                    }
                 }
-            }
-            if (!batch.isEmpty()) {
-                dao.insertBatch(batch);
-            }
+                if (!batch.isEmpty()) {
+                    dao.insertBatch(batch);
+                }
+            });
         });
-        stopwatch.stop();
     }
 
     /** Executes updates on selected columns */
     public void testSpecificUpdate(Stopwatch stopwatch) {
-        stopwatch.start();
         service.executeInTransaction(dao -> {
             var employees = dao.findAllEmployees();
-            for (var employee : employees) {
-                employee.setSalary(employee.getSalary().add(BigDecimal.valueOf(1000)));
-                employee.setUpdatedAt(LocalDateTime.now());
-                dao.updateSalary(employee);
-            }
+            stopwatch.benchmark(() -> {
+                for (var employee : employees) {
+                    employee.setSalary(employee.getSalary().add(BigDecimal.valueOf(1000)));
+                    employee.setUpdatedAt(LocalDateTime.now());
+                    dao.updateSalary(employee);
+                }
+            });
         });
-        stopwatch.stop();
     }
 
     /** Executes updates on randomly modified columns */
     public void testRandomUpdate(Stopwatch stopwatch) {
-        stopwatch.start();
         var random = new Random();
         service.executeInTransaction(dao -> {
             var employees = dao.findAllEmployees();
-            var batch = new ArrayList<Employee>(50);
-            for (var employee : employees) {
-                if (random.nextBoolean()) {
-                    employee.setIsActive(!employee.getIsActive());
-                } else {
-                    employee.setDepartment("Dept-" + random.nextInt(100));
-                }
-                employee.setUpdatedAt(LocalDateTime.now());
-                batch.add(employee);
+            stopwatch.benchmark(() -> {
+                var batch = new ArrayList<Employee>(50);
+                for (var employee : employees) {
+                    if (random.nextBoolean()) {
+                        employee.setIsActive(!employee.getIsActive());
+                    } else {
+                        employee.setDepartment("Dept-" + random.nextInt(100));
+                    }
+                    employee.setUpdatedAt(LocalDateTime.now());
+                    batch.add(employee);
 
-                if (batch.size() == 50) {
-                    dao.updateRandomly(batch);
-                    batch.clear();
+                    if (batch.size() == 50) {
+                        dao.updateRandomly(batch);
+                        batch.clear();
+                    }
                 }
-            }
-            if (!batch.isEmpty()) {
-                dao.updateRandomly(batch);
-            }
+                if (!batch.isEmpty()) {
+                    dao.updateRandomly(batch);
+                }
+            });
         });
-        stopwatch.stop();
     }
 
     /** Reads data including mapped relations */
     public void testReadWithRelations(Stopwatch stopwatch) {
-        stopwatch.start();
         service.executeReadOnly(dao -> {
-            var result = dao.findWithRelations();
+            stopwatch.benchmark(() -> {
+                var result = dao.findWithRelations();
+            });
         });
-        stopwatch.stop();
     }
 
     /** Creates a random employee instance */

@@ -72,18 +72,18 @@ class ExposedBenchmark {
         /** Inserts a single employee */
         fun insert(emp: Employee) {
             Employees.insert {
-                it[Employees.name] = emp.name
-                it[Employees.cityId] = emp.cityId
-                it[Employees.contractDay] = emp.contractDay
-                it[Employees.isActive] = emp.isActive
-                it[Employees.email] = emp.email
-                it[Employees.phone] = emp.phone
-                it[Employees.salary] = emp.salary
-                it[Employees.department] = emp.department
-                it[Employees.createdAt] = emp.createdAt
-                it[Employees.updatedAt] = emp.updatedAt
-                it[Employees.createdBy] = emp.createdBy
-                it[Employees.updatedBy] = emp.updatedBy
+                it[name] = emp.name
+                it[cityId] = emp.cityId
+                it[contractDay] = emp.contractDay
+                it[isActive] = emp.isActive
+                it[email] = emp.email
+                it[phone] = emp.phone
+                it[salary] = emp.salary
+                it[department] = emp.department
+                it[createdAt] = emp.createdAt
+                it[updatedAt] = emp.updatedAt
+                it[createdBy] = emp.createdBy
+                it[updatedBy] = emp.updatedBy
             }
         }
 
@@ -107,7 +107,7 @@ class ExposedBenchmark {
 
         /** Retrieves all employees */
         fun findAllEmployees(): List<Employee> {
-            val result = Employees.selectAll().map {
+            return Employees.selectAll().map {
                 Employee(
                     id = it[Employees.id],
                     name = it[Employees.name],
@@ -124,30 +124,29 @@ class ExposedBenchmark {
                     updatedBy = it[Employees.updatedBy]
                 )
             }
-            return result
         }
 
         /** Updates an employee salary */
         fun updateSalary(empId: Long, newSalary: BigDecimal) {
             Employees.update({ Employees.id eq empId }) {
-                it[Employees.salary] = newSalary
-                it[Employees.updatedAt] = LocalDateTime.now()
+                it[salary] = newSalary
+                it[updatedAt] = LocalDateTime.now()
             }
         }
 
         /** Updates an employee active state */
         fun updateActiveState(empId: Long, newActive: Boolean) {
             Employees.update({ Employees.id eq empId }) {
-                it[Employees.isActive] = newActive
-                it[Employees.updatedAt] = LocalDateTime.now()
+                it[isActive] = newActive
+                it[updatedAt] = LocalDateTime.now()
             }
         }
 
         /** Updates an employee department */
         fun updateDepartment(empId: Long, newDept: String) {
             Employees.update({ Employees.id eq empId }) {
-                it[Employees.department] = newDept
-                it[Employees.updatedAt] = LocalDateTime.now()
+                it[department] = newDept
+                it[updatedAt] = LocalDateTime.now()
             }
         }
 
@@ -156,7 +155,7 @@ class ExposedBenchmark {
             val superiorAlias = Employees.alias("superior")
             val superiorNameAlias = superiorAlias[Employees.name]
 
-            val result = Employees
+            return Employees
                 .innerJoin(Cities)
                 .leftJoin(
                     otherTable = superiorAlias,
@@ -172,7 +171,6 @@ class ExposedBenchmark {
                         it[superiorNameAlias]
                     )
                 }
-            return result
         }
     }
 
@@ -202,78 +200,78 @@ class ExposedBenchmark {
 
     /** Executes a single row insert test */
     fun testSingleInsert(stopwatch: Stopwatch) {
-        stopwatch.start()
         service.executeInTransaction { dao ->
-            for (i in 1..100_000) {
-                val employee = createRandomEmployee()
-                dao.insert(employee)
+            stopwatch.benchmark {
+                for (i in 1..stopwatch.iterations) {
+                    val employee = createRandomEmployee()
+                    dao.insert(employee)
+                }
             }
         }
-        stopwatch.stop()
     }
 
     /** Executes a batch insert test */
     fun testBatchInsert(stopwatch: Stopwatch) {
-        stopwatch.start()
         service.executeInTransaction { dao ->
-            val batch = mutableListOf<Employee>()
-            for (i in 1..100_000) {
-                batch.add(createRandomEmployee())
-                if (i % 50 == 0) {
+            stopwatch.benchmark {
+                val batch = mutableListOf<Employee>()
+                for (i in 1..stopwatch.iterations) {
+                    batch.add(createRandomEmployee())
+                    if (i % 50 == 0) {
+                        dao.insertBatch(batch)
+                        batch.clear()
+                    }
+                }
+                if (batch.isNotEmpty()) {
                     dao.insertBatch(batch)
-                    batch.clear()
                 }
             }
-            if (batch.isNotEmpty()) {
-                dao.insertBatch(batch)
-            }
         }
-        stopwatch.stop()
     }
 
     /** Executes updates on selected columns */
     fun testSpecificUpdate(stopwatch: Stopwatch) {
-        stopwatch.start()
         service.executeInTransaction { dao ->
             val employees = dao.findAllEmployees()
-            for (employee in employees) {
-                val newSalary = (employee.salary ?: BigDecimal.ZERO).add(BigDecimal.valueOf(1000))
-                dao.updateSalary(employee.id!!, newSalary)
+            stopwatch.benchmark {
+                for (employee in employees) {
+                    val newSalary = (employee.salary ?: BigDecimal.ZERO).add(BigDecimal.valueOf(1000))
+                    dao.updateSalary(employee.id!!, newSalary)
+                }
             }
         }
-        stopwatch.stop()
     }
 
     /** Executes updates on randomly modified columns */
     fun testRandomUpdate(stopwatch: Stopwatch) {
-        stopwatch.start()
         val random = Random.Default
         service.executeInTransaction { dao ->
             val employees = dao.findAllEmployees()
-            for (employee in employees) {
-                if (random.nextBoolean()) {
-                    dao.updateActiveState(employee.id!!, !employee.isActive)
-                } else {
-                    dao.updateDepartment(employee.id!!, "Dept-" + random.nextInt(100))
+            stopwatch.benchmark {
+                for (employee in employees) {
+                    if (random.nextBoolean()) {
+                        dao.updateActiveState(employee.id!!, !employee.isActive)
+                    } else {
+                        dao.updateDepartment(employee.id!!, "Dept-" + random.nextInt(100))
+                    }
                 }
             }
         }
-        stopwatch.stop()
     }
 
     /** Reads data including mapped relations */
     fun testReadWithRelations(stopwatch: Stopwatch) {
-        stopwatch.start()
         service.executeReadOnly { dao ->
-            val result = dao.findWithRelations()
+            stopwatch.benchmark {
+                val result = dao.findWithRelations()
+            }
         }
-        stopwatch.stop()
     }
 
     companion object {
         /** Creates a random employee instance */
         fun createRandomEmployee(): Employee {
-            val result = Employee(
+            return Employee(
                 name = "Name",
                 cityId = 1L,
                 contractDay = LocalDate.now(),
@@ -287,7 +285,6 @@ class ExposedBenchmark {
                 createdBy = "System",
                 updatedBy = "System"
             )
-            return result
         }
     }
 }
