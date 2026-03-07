@@ -13,9 +13,13 @@ echo "Building the project using Maven Wrapper..."
 
 echo "Starting the benchmark..."
 
+./mvnw exec:java clean install
 
 # Pass the first script argument to the Java application
 ./mvnw exec:java -pl "${MODULE}" -Dexec.mainClass="${MAIN_CLASS}" -Dexec.args="$@"
+
+find . -type f -name "*jar-with-dependencies*"
+
 
 
 echo "Benchmark execution finished."

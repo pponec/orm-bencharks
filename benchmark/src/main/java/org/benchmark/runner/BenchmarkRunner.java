@@ -18,7 +18,7 @@ public class BenchmarkRunner {
         var runner = new BenchmarkRunner();
 
         {   // Warming Up:
-            var iterations = 100_000 - 1;
+            var iterations = 500_000 - 1;
             runner.runHibernate("Hibernate", iterations);
             runner.runJdbi("Jdbi", iterations);
             runner.runExposed("Exposed", iterations);
@@ -26,7 +26,7 @@ public class BenchmarkRunner {
         }
 
         {   // Run The Benchmark:
-            var iterations = defaultIterations != null ? defaultIterations : 100_000;
+            var iterations = defaultIterations != null ? defaultIterations : 500_000;
             runner.runHibernate("Hibernate", iterations);
             runner.runJdbi("Jdbi", iterations);
             runner.runExposed("Exposed", iterations);
