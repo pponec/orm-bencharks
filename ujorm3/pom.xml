@@ -87,6 +87,43 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <!-- Ujorm -->
+
+            <plugin>
+                <groupId>org.ujorm</groupId>
+                <artifactId>ujorm-meta-maven-plugin</artifactId>
+                <version>3.0.0-BETA</version>
+                <executions>
+                    <!-- 1. Zpracování produkčních entit -->
+                    <execution>
+                        <id>generate-main-meta</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>generate-meta</goal>
+                        </goals>
+                        <configuration>
+                            <prefix>Meta</prefix>
+                            <suffix>_</suffix>
+                            <testScope>false</testScope>
+                        </configuration>
+                    </execution>
+
+                    <!-- 2. Zpracování testovacích entit -->
+                    <execution>
+                        <id>generate-test-meta</id>
+                        <phase>process-test-classes</phase>
+                        <goals>
+                            <goal>generate-meta</goal>
+                        </goals>
+                        <configuration>
+                            <prefix>Meta</prefix>
+                            <suffix>_</suffix>
+                            <testScope>true</testScope>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 </project>

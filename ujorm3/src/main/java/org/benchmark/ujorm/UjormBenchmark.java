@@ -69,6 +69,17 @@ public class UjormBenchmark {
         @Column(name = "updated_by") private String updatedBy;
     }
 
+    /** City entity mapping */
+    @Table(name = "city")
+    @Getter
+    @Setter
+    public static class Test extends AbstractSnapshotable<City> {
+        @Id private long id;
+        private boolean enabled;
+        private Boolean sex;
+        transient private String name;
+    }
+
     /** Data Access Object for entities */
     public static class Dao {
 
