@@ -22,7 +22,7 @@ public class BenchmarkRunner {
             runner.runHibernate("Hibernate", iterations);
             runner.runJdbi("Jdbi", iterations);
             runner.runExposed("Exposed", iterations);
-            runner.runUjorm("Ujorm", iterations);
+            runner.runUjorm("Ujorm3", iterations);
         }
 
         {   // Run The Benchmark:
@@ -30,7 +30,7 @@ public class BenchmarkRunner {
             runner.runHibernate("Hibernate", iterations);
             runner.runJdbi("Jdbi", iterations);
             runner.runExposed("Exposed", iterations);
-            runner.runUjorm("Ujorm", iterations);
+            runner.runUjorm("Ujorm3", iterations);
         }
         System.out.println("All benchmarks finished. Results appended to ~/ujo-benchmark.csv");
     }
