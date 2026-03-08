@@ -42,5 +42,7 @@ All tests exclude the initial warm-up phase to ensure accurate JIT compilation a
 | Ujorm3    | Read With Relations | 500_000 | 0.760_386_230 |  |
 
 
+Learn more about the [Ujorm3 framework](https://github.com/pponec/ujorm/tree/ujorm3?tab=readme-ov-file#-ujorm3-framework).
+
 ---
 
