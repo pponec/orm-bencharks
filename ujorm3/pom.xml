@@ -63,7 +63,7 @@
                         <path>
                             <groupId>org.ujorm</groupId>
                             <artifactId>ujorm-meta-processor</artifactId>
-                            <version>3.0.0-SNAPSHOT</version>
+                            <version>${ujorm.version}</version>
                         </path>
                     </annotationProcessorPaths>
                     <compilerArgs>
