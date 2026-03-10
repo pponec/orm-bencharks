@@ -4,6 +4,7 @@ import org.benchmark.common.Stopwatch;
 import org.benchmark.exposed.ExposedBenchmark;
 import org.benchmark.hibernate.HibernateBenchmark;
 import org.benchmark.jdbi.JdbiBenchmark;
+import org.benchmark.mybatis.MyBatisBenchmark;
 import org.benchmark.ujorm.UjormBenchmark;
 
 /** Main execution class for all benchmarks */
@@ -22,6 +23,7 @@ public class BenchmarkRunner {
             runner.runHibernate("Hibernate", iterations);
             runner.runJdbi("Jdbi", iterations);
             runner.runExposed("Exposed", iterations);
+            runner.runMyBatis("MyBatis", iterations);
             runner.runUjorm("Ujorm3", iterations);
         }
 
@@ -30,6 +32,7 @@ public class BenchmarkRunner {
             runner.runHibernate("Hibernate", iterations);
             runner.runJdbi("Jdbi", iterations);
             runner.runExposed("Exposed", iterations);
+            runner.runMyBatis("MyBatis", iterations);
             runner.runUjorm("Ujorm3", iterations);
         }
         System.out.println("All benchmarks finished. Results appended to ~/ujo-benchmark.csv");
@@ -60,6 +63,17 @@ public class BenchmarkRunner {
     public void runExposed(String name, int iterations) {
         System.out.println("Running %s ...".formatted(name));
         var exposed = new ExposedBenchmark();
+
+        exposed.testBatchInsert(new Stopwatch("Batch Insert", name, iterations));
+        exposed.testSpecificUpdate(new Stopwatch("Specific Update", name, iterations));
+        exposed.testRandomUpdate(new Stopwatch("Random Update", name, iterations));
+        exposed.testReadWithRelations(new Stopwatch("Read With Relations", name, iterations));
+    }
+
+    /** Runs Exposed benchmarks */
+    public void runMyBatis(String name, int iterations) {
+        System.out.println("Running %s ...".formatted(name));
+        var exposed = new MyBatisBenchmark();
 
         exposed.testBatchInsert(new Stopwatch("Batch Insert", name, iterations));
         exposed.testSpecificUpdate(new Stopwatch("Specific Update", name, iterations));

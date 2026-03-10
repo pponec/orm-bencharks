@@ -36,6 +36,11 @@
             <artifactId>exposed</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.benchmark</groupId>
+            <artifactId>mybatis</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <!-- Silent logs for JDBI -->
         <dependency>
