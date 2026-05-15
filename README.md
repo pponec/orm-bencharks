@@ -16,7 +16,7 @@ This project compares the performance and memory efficiency of several Java HTML
 - **Dom4j:** `2.2.0`
 - **Jsoup:** `1.22.1`
 - **Kotlinx.html:** `0.12.0`
-- **Ujorm3:** `3.0.0-RC2`
+- **Ujorm3:** `3.0.0`
 - **StringBuilder:** *(Native JDK baseline)*
 
 ## Test Scenarios & Metrics
@@ -56,16 +56,16 @@ Performance and memory results from this benchmark are used as secondary calibra
 The libraries are sorted by a weighted **Overall Score** (highest to lowest). Values are rounded to whole numbers. The exact `Overall Score` weights are defined in the metrics section above.
 
 
-| Library                    | SIMPLE_100 Throughput [ops/s] | SIMPLE_100 Allocation [B/op] | SIMPLE_1000 Throughput [ops/s] | SIMPLE_1000 Allocation [B/op] | JAR Size [kB] | Quality [0-100] | Overall Score [%] |
-| -------------------------- | ----------------------------- | ---------------------------- | ------------------------------ | ----------------------------- | ------------- | --------------- | ----------------- |
-| Jte                        | **33,830**                    | **7,200**                    | **3,538**                      | **50,402**                    | 79            | **90**          | **100.0**         |
-| KotlinxHtml                | 12,205                        | 67,873                       | 1,268                          | 627,319                       | 825           | 88              | 65.0              |
-| **UjormElement**           | 10,203                        | 28,841                       | 1,060                          | 244,128                       | 124           | 86              | 62.0              |
-| J2html                     | 11,460                        | 124,657                      | 1,086                          | 1,229,822                     | 198           | 83              | 57.6              |
-| Jsoup                      | 13,499                        | 143,193                      | 1,636                          | 1,290,718                     | 496           | 64              | 48.6              |
-| StringBuilder *(baseline)* | 24,989                        | 94,152                       | 2,855                          | 845,859                       | **0**         | 35              | 46.0              |
-| HtmlFlow                   | 12,512                        | 646,753                      | 1,337                          | 5,246,890                     | 52            | 76              | 39.1              |
-| Dom4j                      | 6,365                         | 166,553                      | 647                            | 1,616,589                     | 324           | 54              | 28.3              |
+|                     Library | SIMPLE_100 Throughput [ops/s] | SIMPLE_100 Allocation [B/op] |  SIMPLE_1000 Throughput [ops/s] | SIMPLE_1000 Allocation [B/op] | JAR Size [kB] | Quality [0-100] | Overall Score [%] |
+|----------------------------| -----------------------------: | ----------------------------: |--------------------------------:| -----------------------------: | -------------: | ---------------: | -----------------: |
+|                         Jte | **33,830**                    | **7,200**                    |                       **3,538** | **50,402**                    | 79            | **90**          | **100.0**         |
+|                 KotlinxHtml | 12,205                        | 67,873                       |                           1,268 | 627,319                       | 825           | 88              | 65.0              |
+|            **UjormElement** | 10,203                        | 28,841                       |                           1,060 | 244,128                       | 124           | 86              | 62.0              |
+|                      J2html | 11,460                        | 124,657                      |                           1,086 | 1,229,822                     | 198           | 83              | 57.6              |
+|                       Jsoup | 13,499                        | 143,193                      |                           1,636 | 1,290,718                     | 496           | 64              | 48.6              |
+|  StringBuilder *(baseline)* | 24,989                        | 94,152                       |                           2,855 | 845,859                       | **0**         | 35              | 46.0              |
+|                    HtmlFlow | 12,512                        | 646,753                      |                           1,337 | 5,246,890                     | 52            | 76              | 39.1              |
+|                       Dom4j | 6,365                         | 166,553                      |                             647 | 1,616,589                     | 324           | 54              | 28.3              |
 
 
 Short rationale: after reviewing all available benchmark implementations (including `*Renderer` classes, JTE templates, and helpers), the same metric weights were applied and scores were normalized to better reflect long-term maintainability. Template/DSL approaches rank higher due to readability and safer refactoring; general DOM APIs rank lower, and manual generation ranks lowest.
